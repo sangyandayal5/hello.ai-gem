@@ -15,26 +15,55 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-type Call = ReturnType<StreamVideoClient['call']>;
+type Call = ReturnType<StreamVideoClient['call']>
 
 // Initialize clients
 let ttsClient: tts.TextToSpeechClient | null = null
 let geminiClient: GoogleGenerativeAI | null = null
 
-
+// --- NEW: Helper to decode Google Credentials from Base64 env var ---
+function getGoogleCredentials() {
+  if (process.env.GOOGLE_CLOUD_CREDENTIALS_BASE64) {
+    try {
+      const decoded = Buffer.from(
+        process.env.GOOGLE_CLOUD_CREDENTIALS_BASE64,
+        'base64'
+      ).toString('utf-8')
+      return JSON.parse(decoded)
+    } catch (error) {
+      console.error('[Gemini Voice] Failed to parse Google credentials:', error)
+      return null
+    }
+  }
+  return null
+}
+// --------------------------------------------------------------------
 
 function getTTSClient() {
-  if (
-    !process.env.GOOGLE_CLOUD_KEYFILE &&
-    !process.env.GOOGLE_CLOUD_PROJECT_ID
-  ) {
-    return null
-  }
   if (!ttsClient) {
-    ttsClient = new tts.TextToSpeechClient({
-      keyFilename: process.env.GOOGLE_CLOUD_KEYFILE,
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-    })
+    // 1. Try getting credentials from Vercel Env (Base64)
+    const credentials = getGoogleCredentials()
+
+    if (credentials) {
+      // Production: Use decoded credentials object
+      ttsClient = new tts.TextToSpeechClient({
+        credentials: {
+          client_email: credentials.client_email,
+          private_key: credentials.private_key,
+        },
+        projectId: credentials.project_id,
+      })
+    }
+    // 2. Fallback: Try getting credentials from Local File (Dev)
+    else if (
+      process.env.GOOGLE_CLOUD_KEYFILE &&
+      process.env.GOOGLE_CLOUD_PROJECT_ID
+    ) {
+      ttsClient = new tts.TextToSpeechClient({
+        keyFilename: process.env.GOOGLE_CLOUD_KEYFILE,
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      })
+    }
   }
   return ttsClient
 }
