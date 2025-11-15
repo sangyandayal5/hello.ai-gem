@@ -5,7 +5,6 @@ import { MeetingGetOne } from "../../types"
 import { 
     SparklesIcon,
     FileTextIcon,
-    FileVideoIcon,
     ClockFadingIcon,
     BookOpenTextIcon,
     } from "lucide-react"

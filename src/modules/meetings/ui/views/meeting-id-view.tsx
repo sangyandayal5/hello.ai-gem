@@ -3,7 +3,7 @@
 import { ErrorState } from "@/components/error-state"
 import { LoadingState } from "@/components/loading-state"
 import { useTRPC } from "@/trpc/client"
-import { QueryClient, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { MeetingIdViewHeader } from "../components/meeting-id-view-header"
 import { useRouter } from "next/navigation"
 import { useConfirm } from "@/hooks/use-confirm"

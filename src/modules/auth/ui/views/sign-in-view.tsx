@@ -14,9 +14,10 @@ import { Alert, AlertTitle } from "@/components/ui/alert"
 
 import { authClient } from "@/lib/auth-client"
 
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form"
 import { useForm } from "react-hook-form"
 import { OctagonAlertIcon } from "lucide-react"
+import Image from "next/image"
 
 const formSchema = z.object({
     email: z.string().email(),
@@ -188,7 +189,7 @@ export const SignInView = () => {
               className="bg-radial from-sidebar-accent to-sidebar relative hidden md:flex flex-col
                     gap-y-4 items-center justify-center"
             >
-              <img
+              <Image
                 src="/logo.svg"
                 alt="Image"
                 className="h-[92px] w-[92px]"

@@ -1,31 +1,33 @@
 import 'server-only'
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import speech from '@google-cloud/speech'
-import tts from '@google-cloud/text-to-speech'
-import { Call } from '@stream-io/node-sdk'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
+import * as tts from '@google-cloud/text-to-speech'
+import { StreamVideoClient } from '@stream-io/node-sdk'
+
+// 1. Import Cloudinary and Stream
+import { v2 as cloudinary } from 'cloudinary'
+import { Readable } from 'stream'
+
+// 2. Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
+
+type Call = ReturnType<StreamVideoClient['call']>;
 
 // Initialize clients
-let speechClient: speech.SpeechClient | null = null
 let ttsClient: tts.TextToSpeechClient | null = null
 let geminiClient: GoogleGenerativeAI | null = null
 
-function getSpeechClient() {
-  if (!speechClient) {
-    speechClient = new speech.SpeechClient({
-      keyFilename: process.env.GOOGLE_CLOUD_KEYFILE,
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-    })
-  }
-  return speechClient
-}
+
 
 function getTTSClient() {
-
-  if (!process.env.GOOGLE_CLOUD_KEYFILE && !process.env.GOOGLE_CLOUD_PROJECT_ID ) {
+  if (
+    !process.env.GOOGLE_CLOUD_KEYFILE &&
+    !process.env.GOOGLE_CLOUD_PROJECT_ID
+  ) {
     return null
   }
   if (!ttsClient) {
@@ -67,7 +69,6 @@ export class GeminiVoiceService {
   ): Promise<void> {
     const sessionId = call.id
 
-    // Store session
     this.sessions.set(sessionId, {
       call,
       agentUserId,
@@ -88,7 +89,6 @@ export class GeminiVoiceService {
       return
     }
 
-    // Skip if it's the agent speaking
     if (speakerId === session.agentUserId) {
       return
     }
@@ -111,7 +111,6 @@ export class GeminiVoiceService {
         content: geminiResponse,
       })
 
-      // Step 4: Convert text to speech (optional)
       console.log(
         '[Gemini Voice] TTS request text:',
         geminiResponse.slice(0, 120)
@@ -122,19 +121,45 @@ export class GeminiVoiceService {
         audioBuffer ? audioBuffer.length : 0
       )
 
-      try {
-        const audioFileName = `${callId}-${Date.now()}.wav`
-        const audioUrl = `/audio-responses/${audioFileName}`
-        session.audioResponses.push({
-          text: geminiResponse,
-          audioUrl,
-          timestamp: new Date(),
-        })
-      } catch (saveError) {
-        console.error('[Gemini Voice] Error saving audio:', saveError)
-      }      
+      if (audioBuffer) {
+        try {
+          // 3. UPLOAD TO CLOUDINARY
+          console.log('[Gemini Voice] Uploading to Cloudinary...')
+          const audioUrl = await this.uploadToCloudinary(audioBuffer, callId)
 
-   
+          session.audioResponses.push({
+            text: geminiResponse,
+            audioUrl, // This is now a remote URL (https://res.cloudinary.com/...)
+            timestamp: new Date(),
+          })
+
+          console.log(
+            `[Gemini Voice] Uploaded audio to Cloudinary: ${audioUrl}`
+          )
+        } catch (saveError) {
+          console.error(
+            '[Gemini Voice] Error uploading audio to Cloudinary:',
+            saveError
+          )
+        }
+      } else {
+        try {
+          session.audioResponses.push({
+            text: geminiResponse,
+            audioUrl: '',
+            timestamp: new Date(),
+          })
+        } catch (error) {
+          console.error('[Gemini Voice] Error storing text response:', error)
+        }
+      }
+
+      console.log(
+        `[Gemini Voice] Processed transcription for call ${callId}: ${transcriptionText.substring(
+          0,
+          50
+        )}...`
+      )
     } catch (error) {
       console.error('[Gemini Voice] Error processing transcription:', error)
     } finally {
@@ -142,9 +167,36 @@ export class GeminiVoiceService {
     }
   }
 
-  /**
-   * Generate response using Gemini API
-   */
+  // 4. Helper function to handle the Stream upload
+  private async uploadToCloudinary(
+    buffer: Buffer,
+    callId: string
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'auto', // Important: Let Cloudinary detect it's audio
+          public_id: `voice_agent/${callId}-${Date.now()}`, // Organize in folder
+          format: 'wav',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error details:', error)
+            return reject(error)
+          }
+          if (result?.secure_url) {
+            resolve(result.secure_url)
+          } else {
+            reject(new Error('Cloudinary upload failed to return URL'))
+          }
+        }
+      )
+
+      // Convert Buffer to Stream and pipe to Cloudinary
+      Readable.from(buffer).pipe(uploadStream)
+    })
+  }
+
   private async generateGeminiResponse(
     instructions: string,
     history: Array<{ role: string; content: string }>
@@ -152,24 +204,20 @@ export class GeminiVoiceService {
     const genAI = getGeminiClient()
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
-    // Build conversation context
     const systemPrompt = `${instructions}\n\nYou are having a conversation. Respond naturally and concisely.`
 
-    // Format history for Gemini
     const conversationParts = history.map((msg) => {
       return `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
     })
 
-    const prompt = `${systemPrompt}\n\nConversation:\n${conversationParts.join('\n\n')}\n\nAssistant:`
+    const prompt = `${systemPrompt}\n\nConversation:\n${conversationParts.join(
+      '\n\n'
+    )}\n\nAssistant:`
 
     console.log('[Gemini Voice] Generating response with Gemini...')
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
-    console.log(
-      '[Gemini Voice] Gemini response text:',
-      (text || '').slice(0, 120)
-    )
 
     return text || 'I apologize, but I could not generate a response.'
   }
@@ -177,9 +225,6 @@ export class GeminiVoiceService {
   private async textToSpeech(text: string): Promise<Buffer | null> {
     const client = getTTSClient()
     if (!client) {
-      console.log(
-        '[Gemini Voice] TTS not configured - skipping audio generation'
-      )
       return null
     }
 
@@ -188,7 +233,7 @@ export class GeminiVoiceService {
         input: { text },
         voice: {
           languageCode: 'en-US',
-          name: 'en-US-Neural2-F', 
+          name: 'en-US-Neural2-F',
           ssmlGender: 'FEMALE' as const,
         },
         audioConfig: {
@@ -226,7 +271,6 @@ export class GeminiVoiceService {
     this.sessions.delete(callId)
     console.log(`[Gemini Voice] Session ended for call ${callId}`)
   }
-
 
   hasSession(callId: string): boolean {
     return this.sessions.has(callId)

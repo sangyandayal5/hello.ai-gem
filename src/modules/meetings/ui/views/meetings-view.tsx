@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/error-state"
 import { LoadingState } from "@/components/loading-state"
 
 import { useTRPC } from "@/trpc/client"
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
+import {  useSuspenseQuery } from "@tanstack/react-query"
 import { columns } from "../components/columns"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useRouter } from "next/navigation"

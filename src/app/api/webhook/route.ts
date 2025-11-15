@@ -16,6 +16,14 @@ import { inngest } from '@/inngest/client'
 import { geminiVoiceService } from '@/lib/gemini-voice'
 import { generatedAvatarUri } from '@/lib/avatar'
 
+interface PartialStreamPayload {
+  call_cid?: string
+  call?: { cid?: string }
+  user?: { id?: string }
+  closed_caption?: { user_id?: string }
+  speaker_id?: string
+}
+
 function extractCaptionText(obj: unknown): string | null {
   try {
     if (!obj || typeof obj !== 'object') return null
@@ -358,7 +366,7 @@ export async function POST(req: NextRequest) {
   } else if (eventType === 'call.closed_caption') {
     // Live captions: forward text to Gemini
     try {
-      const anyPayload = payload as any
+      const anyPayload = payload as PartialStreamPayload
       const meetingId: string | undefined =
         anyPayload.call_cid?.split(':')[1] ||
         anyPayload.call?.cid?.split(':')[1]
@@ -403,7 +411,7 @@ export async function POST(req: NextRequest) {
     eventType === 'call.transcription_started'
   ) {
     try {
-      const anyPayload = payload as any
+      const anyPayload = payload as PartialStreamPayload
       const meetingId: string | undefined =
         anyPayload.call_cid?.split(':')[1] ||
         anyPayload.call?.cid?.split(':')[1]
