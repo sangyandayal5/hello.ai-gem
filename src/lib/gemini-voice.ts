@@ -21,8 +21,19 @@ type Call = ReturnType<StreamVideoClient['call']>
 let ttsClient: tts.TextToSpeechClient | null = null
 let geminiClient: GoogleGenerativeAI | null = null
 
-// --- NEW: Helper to decode Google Credentials from Base64 env var ---
+// --- NEW: Robust Credential Helper ---
 function getGoogleCredentials() {
+  // Priority 1: Separate Env Vars (Best for Vercel)
+  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    return {
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      // Fix: Replace escaped newlines with real newlines
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      project_id: process.env.GOOGLE_PROJECT_ID,
+    }
+  }
+
+  // Priority 2: Base64 Env Var (Legacy/Backup)
   if (process.env.GOOGLE_CLOUD_CREDENTIALS_BASE64) {
     try {
       const decoded = Buffer.from(
@@ -41,11 +52,10 @@ function getGoogleCredentials() {
 
 function getTTSClient() {
   if (!ttsClient) {
-    // 1. Try getting credentials from Vercel Env (Base64)
+    // 1. Try getting credentials from Env Vars (Production)
     const credentials = getGoogleCredentials()
 
     if (credentials) {
-      // Production: Use decoded credentials object
       ttsClient = new tts.TextToSpeechClient({
         credentials: {
           client_email: credentials.client_email,
@@ -54,14 +64,11 @@ function getTTSClient() {
         projectId: credentials.project_id,
       })
     }
-    // 2. Fallback: Try getting credentials from Local File (Dev)
-    else if (
-      process.env.GOOGLE_CLOUD_KEYFILE &&
-      process.env.GOOGLE_CLOUD_PROJECT_ID
-    ) {
+    // 2. Fallback: Try getting credentials from Local File (Local Dev)
+    else if (process.env.GOOGLE_CLOUD_KEYFILE) {
+      // We only use this if the file path actually exists in env
       ttsClient = new tts.TextToSpeechClient({
         keyFilename: process.env.GOOGLE_CLOUD_KEYFILE,
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
       })
     }
   }
