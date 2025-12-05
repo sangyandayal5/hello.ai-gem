@@ -227,7 +227,7 @@ export class GeminiVoiceService {
     const genAI = getGeminiClient()
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
-    const systemPrompt = `${instructions}\n\nYou are having a conversation. Respond naturally and concisely.`
+    const systemPrompt = `${instructions}\n\nYou are having a conversation. Respond naturally and concisely.Generate response in single paragraph of 1 to 100 words depending on question. But keep it in one paragraph only.`
 
     const conversationParts = history.map((msg) => {
       return `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
