@@ -4,11 +4,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import * as tts from '@google-cloud/text-to-speech'
 import { StreamVideoClient } from '@stream-io/node-sdk'
 
-// 1. Import Cloudinary and Stream
 import { v2 as cloudinary } from 'cloudinary'
 import { Readable } from 'stream'
 
-// 2. Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -17,23 +15,18 @@ cloudinary.config({
 
 type Call = ReturnType<StreamVideoClient['call']>
 
-// Initialize clients
 let ttsClient: tts.TextToSpeechClient | null = null
 let geminiClient: GoogleGenerativeAI | null = null
 
-// --- NEW: Robust Credential Helper ---
 function getGoogleCredentials() {
-  // Priority 1: Separate Env Vars (Best for Vercel)
   if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
     return {
       client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      // Fix: Replace escaped newlines with real newlines
       private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       project_id: process.env.GOOGLE_PROJECT_ID,
     }
   }
 
-  // Priority 2: Base64 Env Var (Legacy/Backup)
   if (process.env.GOOGLE_CLOUD_CREDENTIALS_BASE64) {
     try {
       const decoded = Buffer.from(
@@ -52,7 +45,6 @@ function getGoogleCredentials() {
 
 function getTTSClient() {
   if (!ttsClient) {
-    // 1. Try getting credentials from Env Vars (Production)
     const credentials = getGoogleCredentials()
 
     if (credentials) {
@@ -64,9 +56,7 @@ function getTTSClient() {
         projectId: credentials.project_id,
       })
     }
-    // 2. Fallback: Try getting credentials from Local File (Local Dev)
     else if (process.env.GOOGLE_CLOUD_KEYFILE) {
-      // We only use this if the file path actually exists in env
       ttsClient = new tts.TextToSpeechClient({
         keyFilename: process.env.GOOGLE_CLOUD_KEYFILE,
       })
@@ -159,13 +149,12 @@ export class GeminiVoiceService {
 
       if (audioBuffer) {
         try {
-          // 3. UPLOAD TO CLOUDINARY
           console.log('[Gemini Voice] Uploading to Cloudinary...')
           const audioUrl = await this.uploadToCloudinary(audioBuffer, callId)
 
           session.audioResponses.push({
             text: geminiResponse,
-            audioUrl, // This is now a remote URL (https://res.cloudinary.com/...)
+            audioUrl, 
             timestamp: new Date(),
           })
 
@@ -203,7 +192,6 @@ export class GeminiVoiceService {
     }
   }
 
-  // 4. Helper function to handle the Stream upload
   private async uploadToCloudinary(
     buffer: Buffer,
     callId: string
@@ -211,8 +199,8 @@ export class GeminiVoiceService {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          resource_type: 'auto', // Important: Let Cloudinary detect it's audio
-          public_id: `voice_agent/${callId}-${Date.now()}`, // Organize in folder
+          resource_type: 'auto',
+          public_id: `voice_agent/${callId}-${Date.now()}`, 
           format: 'wav',
         },
         (error, result) => {
@@ -228,7 +216,6 @@ export class GeminiVoiceService {
         }
       )
 
-      // Convert Buffer to Stream and pipe to Cloudinary
       Readable.from(buffer).pipe(uploadStream)
     })
   }

@@ -183,10 +183,7 @@ export const SignUpView = () => {
                       <AlertTitle>{error}</AlertTitle>
                     </Alert>
                   )}
-                  <Button disabled={pending}
-                  type="submit"
-                  className="w-full"
-                  >
+                  <Button disabled={pending} type="submit" className="w-full">
                     Sign up
                   </Button>
                   <div
@@ -207,7 +204,7 @@ export const SignUpView = () => {
                       type="button"
                       className="w-full"
                     >
-                      <FaGoogle/>
+                      <FaGoogle />
                     </Button>
                     <Button
                       disabled={pending}
@@ -240,7 +237,9 @@ export const SignUpView = () => {
               <Image
                 src="/logo.svg"
                 alt="Image"
-                className="h-[92px] w-[92px]"
+                width={92}
+                height={92}
+                // className="h-[92px] w-[92px]"
               />
               <p className="text-2xl font-semibold text-white">Hello.AI</p>
             </div>

@@ -44,27 +44,27 @@ export const CompletedState = ({ data }: Props) => {
                   <FileTextIcon />
                   Transcript
                 </TabsTrigger>
-                <TabsTrigger
+                {/* <TabsTrigger
                   value="recording"
                   className="text-muted-foreground rounded-none bg-background data-[state=active]:shadow-none border-b-2 border-transparent
                                             data-[state=active]:border-b-primary data-[state=active]:text-foreground h-full hover:text-accent-foreground"
                 >
                   <FileTextIcon />
                   Recording
-                </TabsTrigger>
-                <TabsTrigger
+                </TabsTrigger> */}
+                {/* <TabsTrigger
                   value="chat"
                   className="text-muted-foreground rounded-none bg-background data-[state=active]:shadow-none border-b-2 border-transparent
                                             data-[state=active]:border-b-primary data-[state=active]:text-foreground h-full hover:text-accent-foreground"
                 >
                   <SparklesIcon />
                   Ask AI
-                </TabsTrigger>
-              </TabsList>
+                </TabsTrigger>*/ }
+              </TabsList> 
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </div>
-          <TabsContent value="recording">
+          {/* <TabsContent value="recording">
             <div className="bg-white rounded-lg border px-4 py-5">
               <video
                 src={data.recordingUrl!}
@@ -72,7 +72,7 @@ export const CompletedState = ({ data }: Props) => {
                 controls
               />
             </div>
-          </TabsContent>
+          </TabsContent> */}
           <TabsContent value="summary">
             <div className="bg-white rounded-lg border">
               <div className="px-4 py-5 gap-y-5 flex flex-col col-span-5">

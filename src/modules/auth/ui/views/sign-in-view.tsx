@@ -192,7 +192,9 @@ export const SignInView = () => {
               <Image
                 src="/logo.svg"
                 alt="Image"
-                className="h-[92px] w-[92px]"
+                width={92}
+                height={92}
+                // className="h-[92px] w-[92px]"
               />
               <p className="text-2xl font-semibold text-white">Hello.AI</p>
             </div>

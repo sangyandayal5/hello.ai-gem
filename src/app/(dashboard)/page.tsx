@@ -13,7 +13,7 @@ const Page = async () => {
     redirect("/sign-in")
   }
 
-  return <HomeView/>
+  redirect('/meetings')
 }
 
 export default Page
